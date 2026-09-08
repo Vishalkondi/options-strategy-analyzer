@@ -1,139 +1,84 @@
 # Options Strategy Analyzer
 
-> A full-stack options strategy backtesting and analysis platform built with
-> FastAPI, React 19, TypeScript, Tailwind CSS, DuckDB, and configurable
-> strategy definitions.
+A full-stack Options Strategy Analyzer for importing market data,
+running options strategies, executing backtests, persisting trades,
+and analyzing strategy performance.
 
-![Options Strategy Analyzer](docs/images/dashboard%20(1).png)
-
-> ⚠️ **Development / Demo Status**
->
-> This project is currently a working development build using synthetic demo
-> market data. The strategy logic, indicators, lot sizes, transaction costs,
-> and golden backtest results are not yet fully validated against the
-> production/validated implementation.
->
-> **Do not treat the displayed P&L as real or validated trading performance.**
+> ⚠️ **Important:** The current build uses synthetic demo data.
+> Strategy formulas, indicators, lot sizes, transaction costs, and
+> real NSE data still require validation before using P&L numbers
+> for real trading decisions.
 
 ---
 
-## Overview
+## 📸 Application Screenshots
 
-Options Strategy Analyzer is a full-stack application designed to import
-market data, configure options strategies, run historical backtests, persist
-trades, compare backtest runs, and explore individual trades and option legs.
+### Dashboard
 
-The current implementation provides a real end-to-end workflow using
-synthetic demo data.
-
-The backend actually:
-
-- Imports CSV market data
-- Validates OHLC data
-- Performs SHA-256 based idempotency checks
-- Stores market data in DuckDB
-- Calculates indicators
-- Generates strategy entry signals
-- Prices option spread legs
-- Executes exits based on target, stop, or expiry
-- Persists trades and trade legs
-- Calculates run-level P&L and win rate
-- Stores reproducibility metadata
-- Exposes the functionality through a FastAPI REST API
-
-The frontend is a real React application connected to the backend API.
+<p align="center">
+  <img src="docs/images/dashboard.png"
+       alt="Options Strategy Analyzer Dashboard"
+       width="950">
+</p>
 
 ---
 
-# Features
+### Data Manager
 
-- 📊 Market data ingestion and validation
-- 🔐 SHA-256 based import idempotency
-- 📈 SMA and Wilder's ADX indicators
-- 🧮 Options strategy backtesting
-- 💾 DuckDB persistence
-- 📋 Trade and trade-leg persistence
-- 📊 Multi-run comparison
-- 📉 Cumulative P&L visualization
-- 🔎 Global trade explorer
-- ⚙️ YAML-driven strategy parameters
-- 🧪 Automated unit and mechanics tests
-- 🔄 Backtest reproducibility metadata
-- 🟢 Optional Zerodha/Kite historical data synchronization
-- 🌗 Light/dark theme support
-- 🚦 DEMO DATA / BLOCKED provenance indicators
-- 🖥️ Windows one-click development startup
+<p align="center">
+  <img src="docs/images/data-manager.png"
+       alt="Data Manager"
+       width="950">
+</p>
 
 ---
 
-# Technology Stack
+### Strategy Runner
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 19 |
-| Language | TypeScript |
-| Build Tool | Vite |
-| Styling | Tailwind CSS v4 |
-| Charts | Recharts |
-| Backend | Python |
-| API | FastAPI |
-| Database | DuckDB |
-| Configuration | YAML |
-| Testing | pytest |
-| Market Data | Synthetic demo data |
-| Optional Live Data | Zerodha Kite Connect |
+<p align="center">
+  <img src="docs/images/strategy-runner.png"
+       alt="Strategy Runner"
+       width="950">
+</p>
 
 ---
 
-# Architecture
+### Trade Explorer
 
-```text
-┌──────────────────────────────────────────────┐
-│                  React UI                    │
-│                                              │
-│ React 19 + TypeScript + Vite                 │
-│ Tailwind CSS + Recharts                      │
-│                                              │
-│ Data Manager                                 │
-│ Strategy Runner                              │
-│ Compare Runs                                 │
-│ Trade Explorer                               │
-└──────────────────────┬───────────────────────┘
-                       │
-                       │ REST API
-                       ▼
-┌──────────────────────────────────────────────┐
-│                  FastAPI                     │
-│              server/main.py                  │
-│                                              │
-│ /api/import                                  │
-│ /api/data-coverage                           │
-│ /api/strategies                              │
-│ /api/runs                                    │
-│ /api/runs/{id}/trades                        │
-│ /api/live/sync                               │
-└───────────────┬──────────────┬───────────────┘
-                │              │
-                ▼              ▼
-       ┌────────────────┐  ┌────────────────┐
-       │ Data Ingestion │  │ Backtest       │
-       │ & Validation   │  │ Engine         │
-       │                │  │                │
-       │ SHA-256        │  │ Entry Signals  │
-       │ OHLC Checks    │  │ Option Pricing │
-       │ Quality Report │  │ Exit Rules     │
-       └───────┬────────┘  └───────┬────────┘
-               │                   │
-               └─────────┬─────────┘
-                         ▼
-                 ┌───────────────┐
-                 │    DuckDB     │
-                 │               │
-                 │ imports       │
-                 │ equity_bars   │
-                 │ option_bars   │
-                 │ strategies    │
-                 │ runs          │
-                 │ trades        │
-                 │ trade_legs    │
-                 └───────────────┘
+<p align="center">
+  <img src="docs/images/trade-explorer.png"
+       alt="Trade Explorer"
+       width="950">
+</p>
+
+---
+
+### Strategy Analysis
+
+<p align="center">
+  <img src="docs/images/strategy-analysis.png"
+       alt="Strategy Analysis"
+       width="950">
+</p>
+
+---
+
+### Dashboard Overview
+
+<p align="center">
+  <img src="docs/images/dashboard-overview.png"
+       alt="Dashboard Overview"
+       width="950">
+</p>
+
+---
+
+### Smart Analysis
+
+<p align="center">
+  <img src="docs/images/smart-analysis.png"
+       alt="Smart Analysis"
+       width="950">
+</p>
+
+---
