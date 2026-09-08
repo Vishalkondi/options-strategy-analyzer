@@ -1,0 +1,52 @@
+name: Fast Momentum
+version: 2
+description: Custom parameter build derived from Directional Call/Put Debit Spread
+  (reference)
+parameters:
+  sma_fast:
+    type: number
+    default: 3
+    min: 2
+    max: 50
+  sma_slow:
+    type: number
+    default: 20
+    min: 5
+    max: 200
+  adx_period:
+    type: number
+    default: 14
+    min: 5
+    max: 50
+  adx_threshold:
+    type: number
+    default: 20
+    min: 0
+    max: 60
+  otm_offset_strikes:
+    type: number
+    default: 2
+    min: 1
+    max: 10
+  take_profit_pct:
+    type: number
+    default: 0.2
+    min: 0.05
+    max: 3.0
+  stop_loss_pct:
+    type: number
+    default: 0.5
+    min: 0.05
+    max: 1.0
+  lot_size:
+    type: number
+    default: 1
+    min: 1
+    max: 10000
+    description: "Placeholder only \xE2\u20AC\u201D real NSE lot size unresolved (GAP_ANALYSIS\
+      \ B6)."
+  lots:
+    type: number
+    default: 1
+    min: 1
+    max: 100

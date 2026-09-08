@@ -1,0 +1,54 @@
+name: Directional Call/Put Debit Spread (reference)
+version: 1
+description: >
+  SMA crossover + ADX-gated directional debit spread. Reference
+  implementation pending validation against real strategy source
+  (GAP_ANALYSIS B1). Buy ATM option, sell OTM option in trend direction.
+
+parameters:
+  sma_fast:
+    type: number
+    default: 5
+    min: 2
+    max: 50
+  sma_slow:
+    type: number
+    default: 20
+    min: 5
+    max: 200
+  adx_period:
+    type: number
+    default: 14
+    min: 5
+    max: 50
+  adx_threshold:
+    type: number
+    default: 20
+    min: 0
+    max: 60
+  otm_offset_strikes:
+    type: number
+    default: 2
+    min: 1
+    max: 10
+  take_profit_pct:
+    type: number
+    default: 0.5
+    min: 0.05
+    max: 3.0
+  stop_loss_pct:
+    type: number
+    default: 0.5
+    min: 0.05
+    max: 1.0
+  lot_size:
+    type: number
+    default: 1
+    min: 1
+    max: 10000
+    description: "Placeholder only — real NSE lot size unresolved (GAP_ANALYSIS B6)."
+  lots:
+    type: number
+    default: 1
+    min: 1
+    max: 100
