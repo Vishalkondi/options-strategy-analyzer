@@ -53,18 +53,18 @@ exclude = [
 
 [tool.ruff.lint]
 select = [
-    "E",      # pycodestyle errors
-    "W",      # pycodestyle warnings
-    "F",      # pyflakes
-    "I",      # isort
-    "C",      # flake8-comprehensions
-    "B",      # flake8-bugbear
-    "UP",     # pyupgrade
-    "RUF",    # ruff-specific rules
+    "E",
+    "W",
+    "F",
+    "I",
+    "C",
+    "B",
+    "UP",
+    "RUF",
 ]
 ignore = [
-    "E501",   # line too long (Black handles this)
-    "W191",   # indentation contains tabs
+    "E501",
+    "W191",
 ]
 
 [tool.ruff.lint.isort]
@@ -106,3 +106,7 @@ markers = [
     "slow: Slow tests",
     "live: Tests requiring live API access",
 ]
+
+# Vercel FastAPI configuration
+[tool.vercel]
+entrypoint = "server.main:app"
