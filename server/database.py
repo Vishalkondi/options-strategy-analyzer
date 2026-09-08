@@ -4,12 +4,12 @@ Single DuckDB database handle. Schema application is idempotent.
 Thread safety
 -------------
 DuckDB connections are not safe to use from several threads at once, and this
-process has at least three writers: FastAPI's sync endpoints (each runs on an
+process has at least three writers: FastAPI's sync endpoints (each runs an
 anyio worker thread), the KiteTicker callback thread, and the CSV watcher task.
 
 main.py previously tried to solve this with an HTTP middleware holding a
 threading.RLock. That does nothing: the middleware runs on the event-loop
-thread for every request, and RLock is reentrant *per thread*, so the lock was
+thread for every request, and RLock is reentrant per thread, so the lock was
 always free. Worse, it did not cover the ticker thread at all, which is the one
 writing paper_trades from outside the request cycle.
 
@@ -19,20 +19,25 @@ use one database from multiple threads, and giving each call its own cursor
 means a chained `.fetchall()` can never read another thread's result set.
 Call sites are unchanged -- they still just do `conn.execute(...).fetchall()`.
 """
+
 from __future__ import annotations
 
 import logging
+import os
+import shutil
 import threading
+from pathlib import Path
 
 import duckdb
 
-logger = logging.getLogger("database")
-
 from server.config import settings
 
+logger = logging.getLogger("database")
+
+
 # Applied on every startup, after schema.sql. Additive and idempotent, so an
-# existing database on disk upgrades in place -- no migration step to run, and
-# no risk of dropping data that is already there.
+# existing database on disk upgrades in place -- no migration step to run,
+# and no risk of dropping data that is already there.
 _SCHEMA_UPGRADES = (
     "ALTER TABLE live_market_data ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'api'",
     "ALTER TABLE live_market_data ADD COLUMN IF NOT EXISTS unique_key VARCHAR",
@@ -63,7 +68,7 @@ _SCHEMA_UPGRADES = (
     "ALTER TABLE live_ticks ADD COLUMN IF NOT EXISTS sell_quantity BIGINT",
     "ALTER TABLE live_ticks ADD COLUMN IF NOT EXISTS bid_price DOUBLE",
     "ALTER TABLE live_ticks ADD COLUMN IF NOT EXISTS ask_price DOUBLE",
-    "ALTER TABLE live_ticks ADD COLUMN IF NOT EXISTS market_depth VARCHAR",  # JSON blob
+    "ALTER TABLE live_ticks ADD COLUMN IF NOT EXISTS market_depth VARCHAR",
     "ALTER TABLE live_ticks ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'kite'",
     "ALTER TABLE live_ticks ADD COLUMN IF NOT EXISTS session_id VARCHAR",
     "ALTER TABLE live_ticks ADD COLUMN IF NOT EXISTS received_at TIMESTAMP",
@@ -93,7 +98,9 @@ class ThreadSafeConnection:
     def execute(self, query: str, parameters=None):
         with self._lock:
             cursor = self._conn.cursor()
-            return cursor.execute(query, parameters) if parameters is not None else cursor.execute(query)
+            if parameters is not None:
+                return cursor.execute(query, parameters)
+            return cursor.execute(query)
 
     def executemany(self, query: str, parameters=None):
         with self._lock:
@@ -112,6 +119,7 @@ class ThreadSafeConnection:
 def _apply_schema(conn: duckdb.DuckDBPyConnection) -> None:
     schema_sql = (settings.REPO_ROOT / "server" / "schema.sql").read_text()
     conn.execute(schema_sql)
+
     for statement in _SCHEMA_UPGRADES:
         try:
             conn.execute(statement)
@@ -119,7 +127,11 @@ def _apply_schema(conn: duckdb.DuckDBPyConnection) -> None:
             # An upgrade that cannot apply must not stop the backend booting.
             # Every statement here is additive, so skipping one degrades a
             # feature rather than corrupting anything.
-            logger.warning("Schema upgrade skipped (%s): %s", statement[:60], exc)
+            logger.warning(
+                "Schema upgrade skipped (%s): %s",
+                statement[:60],
+                exc,
+            )
 
 
 _conn = None
@@ -128,9 +140,15 @@ _init_lock = threading.Lock()
 
 def _connect_postgres():
     from server.postgres_backend import PostgresConnection, apply_schema
-    conn = PostgresConnection(settings.POSTGRES_DSN, max_size=settings.POSTGRES_POOL_MAX)
+
+    conn = PostgresConnection(
+        settings.POSTGRES_DSN,
+        max_size=settings.POSTGRES_POOL_MAX,
+    )
+
     schema_sql = (settings.REPO_ROOT / "server" / "schema.sql").read_text()
     apply_schema(conn, schema_sql, _SCHEMA_UPGRADES)
+
     logger.info("Using PostgreSQL backend")
     return conn
 
@@ -139,28 +157,76 @@ def get_database():
     """
     The single database handle.
 
-    Returns a DuckDB or PostgreSQL connection depending on OA_DB_BACKEND. Both
-    expose the same execute()/fetchall()/fetchone()/fetchdf() interface, so no
-    call site in the application knows or cares which one it is talking to.
+    Returns a DuckDB or PostgreSQL connection depending on OA_DB_BACKEND.
+    Both expose the same execute()/fetchall()/fetchone()/fetchdf()
+    interface, so no call site in the application knows or cares which
+    one it is talking to.
     """
     global _conn
+
     if _conn is not None:
         return _conn
+
     with _init_lock:
         if _conn is not None:
             return _conn
+
+        # PostgreSQL is already a server-side database and does not need
+        # the Vercel /tmp workaround.
         if settings.DB_BACKEND in ("postgres", "postgresql"):
             _conn = _connect_postgres()
             return _conn
-        settings.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        raw = duckdb.connect(str(settings.DB_PATH))
+
+        # ---------------------------------------------------------
+        # DuckDB
+        # ---------------------------------------------------------
+        #
+        # Vercel's deployed filesystem (/var/task) is read-only.
+        # The normal local database path may therefore not be opened
+        # for writing on Vercel.
+        #
+        # Local/Windows:
+        #     data/market_data.duckdb
+        #
+        # Vercel:
+        #     /tmp/market_data.duckdb
+        #
+        # /tmp is writable during the lifetime of a serverless
+        # function instance.
+        # ---------------------------------------------------------
+
+        db_path = settings.DB_PATH
+
+        if os.getenv("VERCEL") == "1":
+            db_path = Path("/tmp/market_data.duckdb")
+
+            # Preserve the existing packaged/demo database when it exists.
+            #
+            # The repository copy is read-only but can be READ.
+            # We copy it to /tmp and then open the writable copy.
+            source_db = settings.DB_PATH
+
+            if source_db.exists() and not db_path.exists():
+                shutil.copy2(source_db, db_path)
+                logger.info(
+                    "Copied packaged DuckDB database to writable Vercel path: %s",
+                    db_path,
+                )
+
+            logger.info("Using Vercel writable DuckDB path: %s", db_path)
+
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        raw = duckdb.connect(str(db_path))
         _apply_schema(raw)
+
         _conn = ThreadSafeConnection(raw)
         return _conn
 
 
 def reset_connection_for_tests() -> None:
     global _conn
+
     with _init_lock:
         _conn = None
 
